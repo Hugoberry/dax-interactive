@@ -19,7 +19,7 @@ public class DaxKernelConnector : IKernelConnector
     public Task<Kernel> CreateKernelAsync(string kernelName)
     {
         var kernel = new DaxKernel(
-            $"sql-{kernelName}",
+            $"dax-{kernelName}",
             ConnectionString);
 
         return Task.FromResult<Kernel>(kernel);

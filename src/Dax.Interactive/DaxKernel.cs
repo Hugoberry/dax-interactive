@@ -1,7 +1,7 @@
 ﻿// Copyright (c) .NET Foundation and contributors. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-using Microsoft.AnalysisServices.AdomdClient;
+using System.Data.OleDb;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
@@ -20,75 +20,61 @@ namespace Dax.Interactive
         private readonly string _connectionString;
         private IEnumerable<IEnumerable<IEnumerable<(string name, object value)>>> _tables;
 
-        public DaxKernel(string name, string connectionString) : base(name, "DAX")
+        public DaxKernel(string name, string connectionString) : base(name, "dax")
         {
             _connectionString = connectionString;
         }
 
-        private AdomdConnection OpenConnection()
+        private OleDbConnection OpenConnection()
         {
-            return new AdomdConnection(_connectionString);
+            return new OleDbConnection(_connectionString);
         }
 
         public virtual async Task HandleAsync(
             SubmitCode submitCode,
             KernelInvocationContext context)
         {
-            using var connection = OpenConnection();
-            if (connection.State != ConnectionState.Open)
+            using (var connection = OpenConnection())
             {
                 connection.Open();
-            }
 
-            using var dbCommand = new AdomdCommand();
-
-            dbCommand.CommandText = submitCode.Code;
-
-            _tables = Execute(dbCommand);
-
-            foreach (var table in _tables)
-            {
-                var tabularDataResource = table.ToTabularDataResource();
-
-                var explorer = DataExplorer.CreateDefault(tabularDataResource);
-                context.Display(explorer);
-            }
-        }
-
-      
-        
-        private IEnumerable<IEnumerable<IEnumerable<(string name, object value)>>> Execute(IDbCommand command)
-        {
-            using var reader = command.ExecuteReader();
-
-            do
-            {
-                var values = new object[reader.FieldCount];
-                var names = Enumerable.Range(0, reader.FieldCount).Select(reader.GetName).ToArray();
-
-                DaxKernelUtils.AliasDuplicateColumnNames(names);
-
-                // holds the result of a single statement within the query
-                var table = new List<(string, object)[]>();
-
-                while (reader.Read())
+                using (var dbCommand = new OleDbCommand(submitCode.Code, connection))
                 {
-                    reader.GetValues(values);
-                    var row = new (string, object)[values.Length];
-                    for (var i = 0; i < values.Length; i++)
+
+                    using (var reader = dbCommand.ExecuteReader())
                     {
-                        row[i] = (names[i], values[i]);
+                        var values = new object[reader.FieldCount];
+                        var names = Enumerable.Range(0, reader.FieldCount).Select(reader.GetName).ToArray();
+                        DaxKernelUtils.AliasDuplicateColumnNames(names);
+
+                        // holds the result of a single statement within the query
+                        var table = new List<(string, object)[]>();
+
+                        while (await reader.ReadAsync())
+                        {
+                            reader.GetValues(values);
+                            var row = new (string, object)[values.Length];
+                            for (var i = 0; i < values.Length; i++)
+                            {
+                                row[i] = (names[i], values[i]);
+                            }
+
+                            table.Add(row);
+
+                        }
+
+                        var tabularDataResource = table.ToTabularDataResource();
+                        var explorer = DataExplorer.CreateDefault(tabularDataResource);
+                        context.Display(explorer);
                     }
-
-                    table.Add(row);
                 }
+            }
 
-                yield return table;
-            } while (reader.NextResult());
         }
+
     }
 
-    // public class SqlRow : Dictionary<string, object>
-    // {
-    // }
+    public class SqlRow : Dictionary<string, object>
+    {
+    }
 }
