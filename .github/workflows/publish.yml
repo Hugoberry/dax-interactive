@@ -16,9 +16,7 @@ jobs:
         uses: actions/setup-dotnet@v1
         with:
           dotnet-version: 6.0.x
-      - name: Restore dependencies
-        run: dotnet restore
       - name: Pack
-        run: dotnet pack Dax.Interactive/Dax.Interactive.csproj -c Release
-      - name: Publish to GitHub packages 
+        run: dotnet pack -c Release -o . Dax.Interactive/Dax.Interactive.csproj
+      - name: Publish to Nuget
         run: dotnet nuget push *.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate`
