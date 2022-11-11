@@ -12,7 +12,6 @@ jobs:
         working-directory: ./src
     steps:
       - uses: actions/checkout@v2
-
       - name: Setup dotnet
         uses: actions/setup-dotnet@v1
         with:
@@ -20,6 +19,6 @@ jobs:
       - name: Restore dependencies
         run: dotnet restore
       - name: Pack
-          run: dotnet pack Dax.Interactive/Dax.Interactive.csproj -c Release
+        run: dotnet pack Dax.Interactive/Dax.Interactive.csproj -c Release
       - name: Publish to GitHub packages 
         run: dotnet nuget push *.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate`
