@@ -19,4 +19,4 @@ jobs:
       - name: Pack
         run: dotnet pack -c Release -o . Dax.Interactive/Dax.Interactive.csproj
       - name: Publish to Nuget
-        run: dotnet nuget push *.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate`
+        run: dotnet nuget push *.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
