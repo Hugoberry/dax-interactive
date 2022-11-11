@@ -3,11 +3,12 @@
   <PropertyGroup>
     <TargetFramework>net6.0</TargetFramework>
     <OutputType>Library</OutputType>
+    <Version>0.0.19</Version>
   </PropertyGroup>
 
   <PropertyGroup>
     <IsPackable>true</IsPackable>
-    <PackageDescription>Experimental kernel extensions for dotnet-interactive</PackageDescription>
+    <PackageDescription>Experimental kernel extensions for dotnet-interactive with support for DAX</PackageDescription>
     <PackageTags>polyglot notebook dotnet interactive</PackageTags>
     <IncludeBuildOutput>true</IncludeBuildOutput>
     <NoWarn>$(NoWarn);NU5100;VSTHRD002</NoWarn>
@@ -17,9 +18,6 @@
   
   <PropertyGroup>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-  </PropertyGroup>
-  <PropertyGroup>
-    <Version>0.1</Version>
   </PropertyGroup>
 
   <ItemGroup>
