@@ -18,6 +18,9 @@
   <PropertyGroup>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
   </PropertyGroup>
+  <PropertyGroup>
+    <Version>0.1</Version>
+  </PropertyGroup>
 
   <ItemGroup>
     <Compile Remove="bin\**" />
