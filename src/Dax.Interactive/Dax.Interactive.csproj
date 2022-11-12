@@ -3,7 +3,7 @@
   <PropertyGroup>
     <TargetFramework>net6.0</TargetFramework>
     <OutputType>Library</OutputType>
-    <Version>0.0.19</Version>
+    <Version>0.0.23</Version>
   </PropertyGroup>
 
   <PropertyGroup>
@@ -27,10 +27,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.AnalysisServices.AdomdClient.retail.amd64" Version="19.51.0" />
-    <PackageReference Include="Microsoft.Data.Analysis" Version="0.19.1" />
+    <PackageReference Include="Microsoft.AnalysisServices.AdomdClient.NetCore.retail.amd64" Version="19.52.2.2" />
     <PackageReference Include="Microsoft.DotNet.Interactive" Version="1.0.0-beta.22553.7" />
-    <PackageReference Include="System.Data.OleDb" Version="7.0.0" />
     
   </ItemGroup>
 

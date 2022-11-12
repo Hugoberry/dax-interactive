@@ -4,9 +4,9 @@
 using System;
 using System.Linq;
 using System.Data;
-using System.Data.OleDb;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Microsoft.AnalysisServices.AdomdClient;
 using Microsoft.DotNet.Interactive;
 using Microsoft.DotNet.Interactive.Commands;
 using Microsoft.DotNet.Interactive.Formatting.TabularData;
@@ -41,45 +41,46 @@ namespace Dax.Interactive
             SubmitCode submitCode,
             KernelInvocationContext context)
         {
-            using (var connection = new OleDbConnection(_connectionString))
+            AdomdConnection connection = new AdomdConnection();
+            connection.ConnectionString = _connectionString;
+
+            connection.Open();
+            AdomdCommand cmd = new AdomdCommand(submitCode.Code);
+            cmd.Connection = connection;
+
+            await Task.Run(() =>
             {
-                connection.Open();
 
-                using (var dbCommand = new OleDbCommand(submitCode.Code, connection))
+                using (var reader = cmd.ExecuteReader())
                 {
+                    var results = new List<TabularDataResource>();
+                    var values = new object[reader.FieldCount];
+                    var names = Enumerable.Range(0, reader.FieldCount).Select(reader.GetName).ToArray();
+                    DaxKernelUtils.AliasDuplicateColumnNames(names);
 
-                    using (var reader = dbCommand.ExecuteReader())
+                    // holds the result of a single statement within the query
+                    var table = new List<(string, object)[]>();
+
+                    while (reader.Read())
                     {
-                        var results = new List<TabularDataResource>();
-                        var values = new object[reader.FieldCount];
-                        var names = Enumerable.Range(0, reader.FieldCount).Select(reader.GetName).ToArray();
-                        DaxKernelUtils.AliasDuplicateColumnNames(names);
-
-                        // holds the result of a single statement within the query
-                        var table = new List<(string, object)[]>();
-
-                        while (await reader.ReadAsync())
+                        reader.GetValues(values);
+                        var row = new (string, object)[values.Length];
+                        for (var i = 0; i < values.Length; i++)
                         {
-                            reader.GetValues(values);
-                            var row = new (string, object)[values.Length];
-                            for (var i = 0; i < values.Length; i++)
-                            {
-                                row[i] = (names[i], values[i]);
-                            }
-
-                            table.Add(row);
-
+                            row[i] = (names[i], values[i]);
                         }
 
-                        var tabularDataResource = table.ToTabularDataResource();
-                        results.Add(tabularDataResource);
-                        var explorer = DataExplorer.CreateDefault(tabularDataResource);
-                        context.Display(explorer);
-                        StoreQueryResults(results, submitCode.KernelChooserParseResult);
-                    }
-                }
-            }
+                        table.Add(row);
 
+                    }
+
+                    var tabularDataResource = table.ToTabularDataResource();
+                    results.Add(tabularDataResource);
+                    var explorer = DataExplorer.CreateDefault(tabularDataResource);
+                    context.Display(explorer);
+                    StoreQueryResults(results, submitCode.KernelChooserParseResult);
+                }
+            });
         }
 
         protected virtual void StoreQueryResults(IReadOnlyCollection<TabularDataResource> results, ParseResult commandKernelChooserParseResult)
