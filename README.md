@@ -1,5 +1,6 @@
 # dax-interactive
 An extension for Polyglot Notebooks that adds a custom kernel for querying PowerBI/SSAS and other flavours of Tabular models via DAX.
+[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/Hugoberry/dax-interactive/HEAD)
 ## How to use it
 Follow the 3 steps:
 1. Add the nugget reference
