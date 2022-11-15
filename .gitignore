@@ -392,3 +392,4 @@ src/Microsoft.DotNet.Interactive.ExtensionLab.Tests/DataFrameKernelExtensionTest
 src/microsoft-dotnet-interactive/lib/
 
 src/Dax.Interactive.Tests/
+src/AdomdWrappers/

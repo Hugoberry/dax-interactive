@@ -1,0 +1,20 @@
+{
+  "event": {},
+  "eventType": "CommandCancelled",
+  "command": {
+    "token": "the-token",
+    "id": "command-id",
+    "commandType": "Cancel",
+    "command": {
+      "targetKernelName": null,
+      "originUri": null,
+      "destinationUri": null
+    },
+    "routingSlip": [
+      "kernel://somelocation/kernelName"
+    ]
+  },
+  "routingSlip": [
+    "kernel://somelocation/kernelName"
+  ]
+}
