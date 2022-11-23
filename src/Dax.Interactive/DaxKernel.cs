@@ -1,8 +1,9 @@
 ﻿// Copyright (c) .NET Foundation and contributors. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-using System;
+// using System;
 using System.Linq;
+using Microsoft.Identity.Client;
 using System.Data;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -30,7 +31,7 @@ namespace Dax.Interactive
         /// <summary>
         /// Used to store incoming variables passed in via #!share
         /// </summary>
-        private readonly Dictionary<string, object> _variables = new(StringComparer.Ordinal);
+        private readonly Dictionary<string, object> _variables = new(System.StringComparer.Ordinal);
         public DaxKernel(string name, string connectionString) : base(name, "dax")
         {
             _connectionString = connectionString;
@@ -42,9 +43,21 @@ namespace Dax.Interactive
             KernelInvocationContext context)
         {
             AdomdConnection connection = new AdomdConnection();
-            connection.ConnectionString = _connectionString;
+            try
+            {
+                
+                var token = await ConnectionHelper.AcquireTokenInteractiveAsync((string) null, (string) null,context.CancellationToken);
+                context.Display(token.AccessToken);
+                // connection.ConnectionString = _connectionString;
+                // connection.Open();
+            }
+            catch (System.ArgumentException ex)
+            {
+                context.Display("Error connecting to the server 0.30");
+                context.Fail(context.Command,ex);
+                return;
+            }
 
-            connection.Open();
             AdomdCommand cmd = new AdomdCommand(submitCode.Code);
             cmd.Connection = connection;
 
