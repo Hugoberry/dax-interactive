@@ -1,4 +1,4 @@
-FROM jupyter/base-notebook:ubuntu-20.04
+FROM jupyter/base-notebook:ubuntu-22.04
 
 # Install .NET CLI dependencies
 
@@ -30,8 +30,8 @@ RUN apt-get update \
   libc6 \
   libgcc1 \
   libgssapi-krb5-2 \
-  libicu66 \
-  libssl1.1 \
+  libicu70 \
+  libssl3 \
   libstdc++6 \
   zlib1g \
   && rm -rf /var/lib/apt/lists/*
@@ -39,18 +39,14 @@ RUN apt-get update \
 # Install .NET Core SDK
 
 # When updating the SDK version, the sha512 value a few lines down must also be updated.
-ENV DOTNET_SDK_VERSION 6.0.100
+ENV DOTNET_SDK_VERSION 7.0.100
+ENV DOTNET_INTERACTIVE_VERSION 1.0.357501
 
-RUN dotnet_sdk_version=6.0.100 \
-  && curl -SL --output dotnet.tar.gz https://dotnetcli.azureedge.net/dotnet/Sdk/$dotnet_sdk_version/dotnet-sdk-$dotnet_sdk_version-linux-x64.tar.gz \
-  && dotnet_sha512='cb0d174a79d6294c302261b645dba6a479da8f7cf6c1fe15ae6998bc09c5e0baec810822f9e0104e84b0efd51fdc0333306cb2a0a6fcdbaf515a8ad8cf1af25b' \
-  && echo "$dotnet_sha512 dotnet.tar.gz" | sha512sum -c - \
-  && mkdir -p /usr/share/dotnet \
-  && tar -ozxf dotnet.tar.gz -C /usr/share/dotnet \
-  && rm dotnet.tar.gz \
-  && ln -s /usr/share/dotnet/dotnet /usr/bin/dotnet \
-  # Trigger first run experience by running arbitrary cmd
-  && dotnet help
+RUN curl -L https://dot.net/v1/dotnet-install.sh | bash -e -s -- --install-dir /usr/share/dotnet --version $DOTNET_SDK_VERSION \
+  && ln -s /usr/share/dotnet/dotnet /usr/bin/dotnet
+
+# Trigger first run experience by running arbitrary command
+RUN dotnet help
 
 # Copy notebooks
 COPY ./notebooks/ ${HOME}/Notebooks/
@@ -65,11 +61,21 @@ USER ${USER}
 RUN pip install nteract_on_jupyter
 
 # Install lastest build of Microsoft.DotNet.Interactive
-RUN dotnet tool install -g Microsoft.dotnet-interactive --add-source "https://pkgs.dev.azure.com/dnceng/public/_packaging/dotnet-experimental/nuget/v3/index.json"
+RUN dotnet tool install -g Microsoft.dotnet-interactive --version $DOTNET_INTERACTIVE_VERSION --add-source "https://pkgs.dev.azure.com/dnceng/public/_packaging/dotnet-experimental/nuget/v3/index.json"
 
 ENV PATH="${PATH}:${HOME}/.dotnet/tools"
 RUN echo "$PATH"
 
+
+RUN echo "{\
+  \"asConfiguration\": {\
+    \"runtime\": {\
+      \"isProcessWithUI\": true\
+    }\
+  }\
+}\
+" > ${HOME}/.dotnet/tools/.store/microsoft.dotnet-interactive/${DOTNET_INTERACTIVE_VERSION}/microsoft.dotnet-interactive/${DOTNET_INTERACTIVE_VERSION}/tools/net7.0/any/Microsoft.DotNet.Interactive.App.appsettings.json
+  
 # Install kernel specs
 RUN dotnet interactive jupyter install
 
