@@ -1,9 +1,11 @@
 ﻿// Copyright (c) .NET Foundation and contributors. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-using System;
+// using System;
 using System.Linq;
+using Microsoft.Identity.Client;
 using System.Data;
+using System.Data.OleDb;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.AnalysisServices.AdomdClient;
@@ -14,37 +16,43 @@ using Enumerable = System.Linq.Enumerable;
 using System.CommandLine.Parsing;
 
 
-namespace Dax.Interactive
+namespace Dax.Interactive;
+
+public class DaxKernel :
+    Kernel,
+    IKernelCommandHandler<SubmitCode>
 {
-    public class DaxKernel :
-        Kernel,
-        IKernelCommandHandler<SubmitCode>
+    private readonly string _connectionString;
+    private readonly string _accessToken;
+    /// <summary>
+    /// The set of query result lists to save for sharing later.
+    /// The key will be the name of the value.
+    /// The value is a list of result sets (multiple if multiple queries are ran as a batch)
+    /// </summary>
+    protected Dictionary<string, IReadOnlyCollection<TabularDataResource>> QueryResults { get; } = new();
+    /// <summary>
+    /// Used to store incoming variables passed in via #!share
+    /// </summary>
+    private readonly Dictionary<string, object> _variables = new(System.StringComparer.Ordinal);
+    public DaxKernel(string name, string connectionString) : base(name, "dax")
     {
-        private readonly string _connectionString;
-        /// <summary>
-        /// The set of query result lists to save for sharing later.
-        /// The key will be the name of the value.
-        /// The value is a list of result sets (multiple if multiple queries are ran as a batch)
-        /// </summary>
-        protected Dictionary<string, IReadOnlyCollection<TabularDataResource>> QueryResults { get; } = new();
-        /// <summary>
-        /// Used to store incoming variables passed in via #!share
-        /// </summary>
-        private readonly Dictionary<string, object> _variables = new(StringComparer.Ordinal);
-        public DaxKernel(string name, string connectionString) : base(name, "dax")
+        _connectionString = connectionString;
+    }
+
+
+    public virtual async Task HandleAsync(
+        SubmitCode submitCode,
+        KernelInvocationContext context)
+    {
+        AdomdConnection connection = new AdomdConnection();
+        try
         {
-            _connectionString = connectionString;
-        }
 
-
-        public virtual async Task HandleAsync(
-            SubmitCode submitCode,
-            KernelInvocationContext context)
-        {
-            AdomdConnection connection = new AdomdConnection();
-            connection.ConnectionString = _connectionString;
-
+            var token = await MsalHelper.AcquireTokenInteractiveAsync((string)null, (string)null, context.CancellationToken);
+            context.Display(token.AccessToken);
+            connection.ConnectionString = $"{_connectionString};Password={token.AccessToken};";
             connection.Open();
+
             AdomdCommand cmd = new AdomdCommand(submitCode.Code);
             cmd.Connection = connection;
 
@@ -82,10 +90,15 @@ namespace Dax.Interactive
                 }
             });
         }
-
-        protected virtual void StoreQueryResults(IReadOnlyCollection<TabularDataResource> results, ParseResult commandKernelChooserParseResult)
+        catch (System.ArgumentException ex)
         {
+            context.Fail(context.Command, ex);
+            return;
         }
-
     }
+
+    protected virtual void StoreQueryResults(IReadOnlyCollection<TabularDataResource> results, ParseResult commandKernelChooserParseResult)
+    {
+    }
+
 }

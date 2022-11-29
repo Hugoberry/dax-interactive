@@ -7,27 +7,26 @@ using System.Threading.Tasks;
 using Microsoft.DotNet.Interactive;
 using Microsoft.DotNet.Interactive.Connection;
 
-namespace Dax.Interactive
+namespace Dax.Interactive;
+
+public class ConnectDaxCommand : ConnectKernelCommand
 {
-    public class ConnectDaxCommand : ConnectKernelCommand
+    public ConnectDaxCommand()
+        : base("dax", "Connects to a tabular model")
     {
-        public ConnectDaxCommand()
-            : base("dax", "Connects to a tabular model")
-        {
-            Add(ConnectionStringArgument);
-        }
+        Add(ConnectionStringArgument);
+    }
 
-        public Argument<string> ConnectionStringArgument { get; } =
-            new("connectionString", "The connection string used to connect to the tabular model");
+    public Argument<string> ConnectionStringArgument { get; } =
+        new("connectionString", "The connection string used to connect to the tabular model");
 
-        public override Task<Kernel> ConnectKernelAsync(
-            KernelInvocationContext context,
-            InvocationContext commandLineContext)
-        {
-            var connectionString = commandLineContext.ParseResult.GetValueForArgument(ConnectionStringArgument);
-            var connector = new DaxKernelConnector(connectionString);
-            var localName = commandLineContext.ParseResult.GetValueForOption(KernelNameOption);
-            return connector.CreateKernelAsync(localName);
-        }
+    public override Task<Kernel> ConnectKernelAsync(
+        KernelInvocationContext context,
+        InvocationContext commandLineContext)
+    {
+        var connectionString = commandLineContext.ParseResult.GetValueForArgument(ConnectionStringArgument);
+        var connector = new DaxKernelConnector(connectionString);
+        var localName = commandLineContext.ParseResult.GetValueForOption(KernelNameOption);
+        return connector.CreateKernelAsync(localName);
     }
 }
