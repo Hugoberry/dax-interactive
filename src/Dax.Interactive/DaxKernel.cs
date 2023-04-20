@@ -14,7 +14,7 @@ using Microsoft.DotNet.Interactive.Commands;
 using Microsoft.DotNet.Interactive.Formatting.TabularData;
 using Enumerable = System.Linq.Enumerable;
 using System.CommandLine.Parsing;
-
+using System;
 
 namespace Dax.Interactive;
 
@@ -23,7 +23,8 @@ public class DaxKernel :
     IKernelCommandHandler<SubmitCode>
 {
     private readonly string _connectionString;
-    private readonly string _accessToken;
+    private bool _isConnected;
+    private string _accessToken;
     /// <summary>
     /// The set of query result lists to save for sharing later.
     /// The key will be the name of the value.
@@ -39,62 +40,76 @@ public class DaxKernel :
         _connectionString = connectionString;
     }
 
+    private async Task<AdomdConnection> GetConnection(KernelInvocationContext context)
+    {
+        var connection = new AdomdConnection();
+        try
+        {
+            connection.ConnectionString = _connectionString;
+            connection.Open();
+            _isConnected = true;
+        }
+        catch (ArgumentException ex)
+        {
+            var token = await MsalHelper.AcquireTokenInteractiveAsync((string)null, (string)null, context.CancellationToken);
+            connection.ConnectionString = $"{_connectionString};Password={token.AccessToken};";
+            connection.Open();
+            _isConnected = false;
+            throw new Exception("Error connecting to the tabular model", ex);
+        }
+        catch (Exception ex)
+        {
+            _isConnected = false;
+            throw new Exception("Error connecting to the server", ex);
+        }
+        connection.Open();
+        return connection;
+    }
 
     public virtual async Task HandleAsync(
         SubmitCode submitCode,
         KernelInvocationContext context)
     {
-        AdomdConnection connection = new AdomdConnection();
-        try
+
+
+
+        AdomdCommand cmd = new AdomdCommand(submitCode.Code);
+        cmd.Connection = await GetConnection(context);
+
+        await Task.Run(() =>
         {
 
-            var token = await MsalHelper.AcquireTokenInteractiveAsync((string)null, (string)null, context.CancellationToken);
-            context.Display(token.AccessToken);
-            connection.ConnectionString = $"{_connectionString};Password={token.AccessToken};";
-            connection.Open();
-
-            AdomdCommand cmd = new AdomdCommand(submitCode.Code);
-            cmd.Connection = connection;
-
-            await Task.Run(() =>
+            using (var reader = cmd.ExecuteReader())
             {
+                var results = new List<TabularDataResource>();
+                var values = new object[reader.FieldCount];
+                var names = Enumerable.Range(0, reader.FieldCount).Select(reader.GetName).ToArray();
+                DaxKernelUtils.AliasDuplicateColumnNames(names);
 
-                using (var reader = cmd.ExecuteReader())
+                // holds the result of a single statement within the query
+                var table = new List<(string, object)[]>();
+
+                while (reader.Read())
                 {
-                    var results = new List<TabularDataResource>();
-                    var values = new object[reader.FieldCount];
-                    var names = Enumerable.Range(0, reader.FieldCount).Select(reader.GetName).ToArray();
-                    DaxKernelUtils.AliasDuplicateColumnNames(names);
-
-                    // holds the result of a single statement within the query
-                    var table = new List<(string, object)[]>();
-
-                    while (reader.Read())
+                    reader.GetValues(values);
+                    var row = new (string, object)[values.Length];
+                    for (var i = 0; i < values.Length; i++)
                     {
-                        reader.GetValues(values);
-                        var row = new (string, object)[values.Length];
-                        for (var i = 0; i < values.Length; i++)
-                        {
-                            row[i] = (names[i], values[i]);
-                        }
-
-                        table.Add(row);
-
+                        row[i] = (names[i], values[i]);
                     }
 
-                    var tabularDataResource = table.ToTabularDataResource();
-                    results.Add(tabularDataResource);
-                    var explorer = DataExplorer.CreateDefault(tabularDataResource);
-                    context.Display(explorer);
-                    StoreQueryResults(results, submitCode.KernelChooserParseResult);
+                    table.Add(row);
+
                 }
-            });
-        }
-        catch (System.ArgumentException ex)
-        {
-            context.Fail(context.Command, ex);
-            return;
-        }
+
+                var tabularDataResource = table.ToTabularDataResource();
+                results.Add(tabularDataResource);
+                var explorer = DataExplorer.CreateDefault(tabularDataResource);
+                context.Display(explorer);
+                StoreQueryResults(results, submitCode.KernelChooserParseResult);
+            }
+        });
+
     }
 
     protected virtual void StoreQueryResults(IReadOnlyCollection<TabularDataResource> results, ParseResult commandKernelChooserParseResult)
